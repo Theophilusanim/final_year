@@ -1,0 +1,13 @@
+fastapi>=0.110.0
+uvicorn>=0.28.0
+sqlalchemy>=2.0.0
+pydantic>=2.6.0
+python-multipart>=0.0.9
+# OpenCV 5.0.0.93 omits the bundled Haar cascade XML data required by
+# DeepFace's OpenCV detector. Keep the supported 4.x package line.
+opencv-python>=4.9.0.80,<5
+numpy>=1.26.0
+deepface>=0.0.86
+python-dotenv>=1.0.0
+email-validator>=2.0.0
+tf-keras
