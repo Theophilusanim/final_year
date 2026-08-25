@@ -1,26 +1,35 @@
 import React, { useState, useEffect } from 'react'
-import { LayoutDashboard, ClipboardList, Camera, UserCheck, Users, ShieldAlert } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Camera, UserCheck, Users, ShieldAlert, Smartphone, LogOut } from 'lucide-react'
+import Login from './components/Login'
+import { apiFetch } from './api'
 import Dashboard from './components/Dashboard'
 import AttendanceList from './components/AttendanceList'
 import CameraTerminal from './components/CameraTerminal'
 import StaffDetails from './components/StaffDetails'
 import StaffManagement from './components/StaffManagement'
+import MobileTerminal from './components/MobileTerminal'
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [networkBlocked, setNetworkBlocked] = useState(false)
   const [blockedIp, setBlockedIp] = useState('')
+  const [authenticated, setAuthenticated] = useState(Boolean(localStorage.getItem('aegis_access_token')))
+
+  useEffect(() => {
+    const expire = () => setAuthenticated(false)
+    window.addEventListener('auth-expired', expire)
+    return () => window.removeEventListener('auth-expired', expire)
+  }, [])
 
   // Check subnet connectivity on mount and tab switches
   useEffect(() => {
     async function checkNetwork() {
       try {
-        const res = await fetch('/api/staff')
+        const res = await apiFetch('/api/staff')
         if (res.status === 403) {
           const data = await res.json()
           if (data.detail && data.detail.includes("Campus Network")) {
             setNetworkBlocked(true)
-            // Extract IP address from the detail string, e.g. "Access Denied: Your connection source (127.0.0.1)..."
             const ipMatch = data.detail.match(/\(([^)]+)\)/)
             if (ipMatch) {
               setBlockedIp(ipMatch[1])
@@ -35,6 +44,8 @@ function App() {
     }
     checkNetwork()
   }, [activeTab])
+
+  if (!authenticated) return <Login onLogin={() => setAuthenticated(true)} />
 
   return (
     <div className="app-container">
@@ -51,7 +62,7 @@ function App() {
           WebkitBackdropFilter: 'blur(12px)',
           display: 'flex',
           alignItems: 'center',
-          justifycontent: 'center',
+          justifyContent: 'center',
           zIndex: 9999,
           padding: '2rem'
         }}>
@@ -136,6 +147,15 @@ function App() {
           </li>
           <li>
             <button 
+              className={`nav-item ${activeTab === 'mobile' ? 'active' : ''}`}
+              onClick={() => setActiveTab('mobile')}
+            >
+              <Smartphone size={20} />
+              Mobile Wi-Fi Terminal
+            </button>
+          </li>
+          <li>
+            <button 
               className={`nav-item ${activeTab === 'staff_details' ? 'active' : ''}`}
               onClick={() => setActiveTab('staff_details')}
             >
@@ -153,6 +173,10 @@ function App() {
             </button>
           </li>
         </ul>
+        <button className="nav-item logout-button" onClick={() => { localStorage.removeItem('aegis_access_token'); setAuthenticated(false) }}>
+          <LogOut size={20} />
+          Sign out
+        </button>
       </aside>
 
       {/* Main Content View */}
@@ -160,6 +184,7 @@ function App() {
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'attendance' && <AttendanceList />}
         {activeTab === 'camera' && <CameraTerminal />}
+        {activeTab === 'mobile' && <MobileTerminal />}
         {activeTab === 'staff_details' && <StaffDetails />}
         {activeTab === 'staff' && <StaffManagement />}
       </main>

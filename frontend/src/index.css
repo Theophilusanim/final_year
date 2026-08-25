@@ -38,6 +38,128 @@ body {
   overflow-x: hidden;
 }
 
+/* Authentication */
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background: radial-gradient(circle at 20% 15%, rgba(59, 130, 246, 0.18), transparent 35%),
+              radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.12), transparent 32%),
+              var(--bg-primary);
+}
+
+.login-card {
+  width: min(100%, 430px);
+  padding: 2.5rem;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2.75rem;
+}
+
+.login-card h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.login-subtitle {
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+}
+
+.login-field {
+  display: block;
+  margin-bottom: 1.25rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.login-input {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 0.5rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-muted);
+  background: rgba(10, 14, 26, 0.4);
+}
+
+.login-input:focus-within {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.login-input input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: var(--text-primary);
+  background: transparent;
+  font: inherit;
+}
+
+.password-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  color: var(--text-primary);
+}
+
+.login-submit {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 1.75rem;
+  padding: 0.85rem 1rem;
+  border: 0;
+  border-radius: 10px;
+  color: white;
+  background: var(--accent-gradient);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.login-submit:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.login-error {
+  padding: 0.75rem;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  font-size: 0.9rem;
+}
+
+.logout-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
 /* App Layout */
 .app-container {
   display: flex;
@@ -461,4 +583,212 @@ body {
 .file-upload-zone:hover {
   border-color: var(--accent-blue);
   background-color: rgba(59, 130, 246, 0.02);
+}
+
+/* Modal Overlay & Card */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10, 14, 26, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1.5rem;
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+.modal-card {
+  background: linear-gradient(145deg, rgba(19, 25, 46, 0.95), rgba(27, 36, 64, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(59, 130, 246, 0.15);
+  width: 100%;
+  max-width: 480px;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+  animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid var(--status-danger);
+  color: #fca5a5;
+  box-shadow: none;
+}
+
+.btn-danger:hover {
+  background: var(--status-danger);
+  color: white;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
+.pulse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--status-success);
+  display: inline-block;
+  box-shadow: 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: pulseDot 1.8s infinite;
+}
+
+@keyframes pulseDot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.92) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    display: block;
+  }
+
+  .sidebar {
+    width: 100%;
+    padding: 1rem;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .logo-container {
+    margin-bottom: 1rem;
+  }
+
+  .logo-text {
+    font-size: 1.05rem;
+  }
+
+  .nav-menu {
+    flex-direction: row;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    scrollbar-width: thin;
+  }
+
+  .nav-menu li {
+    flex: 0 0 auto;
+  }
+
+  .nav-item {
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0.65rem 0.8rem;
+    white-space: nowrap;
+    font-size: 0.82rem;
+  }
+
+  .main-content {
+    padding: 1rem;
+  }
+
+  .header {
+    align-items: flex-start;
+    margin-bottom: 1.25rem;
+  }
+
+  .header-title h1 {
+    font-size: 1.45rem;
+    line-height: 1.2;
+  }
+
+  .header-title p {
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+
+  .dashboard-grid,
+  .mobile-terminal-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .glass-card {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  .mobile-terminal .header {
+    margin-bottom: 1rem;
+  }
+
+  .mobile-terminal .glass-card {
+    padding: 1rem;
+  }
+
+  .mobile-terminal .btn {
+    min-height: 48px;
+    padding: 0.75rem 0.8rem;
+    font-size: 0.86rem;
+  }
+
+  .mobile-terminal .form-input {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+
+  .mobile-terminal .network-detail {
+    align-items: flex-start !important;
+    gap: 0.35rem;
+    flex-direction: column;
+  }
+
+  .mobile-terminal .network-detail strong {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .table-container {
+    margin-inline: -1rem;
+    padding-inline: 1rem;
+  }
+
+  .modal-backdrop {
+    padding: 0.75rem;
+    align-items: flex-end;
+  }
+
+  .modal-card {
+    max-height: calc(100vh - 1.5rem);
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+    padding: 1.25rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .main-content {
+    padding: 0.75rem;
+  }
+
+  .header-title h1 {
+    font-size: 1.25rem;
+  }
+
+  .mobile-terminal .mode-switcher {
+    flex-direction: column;
+  }
 }

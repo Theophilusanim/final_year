@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Search, Mail, Hash, UserCheck, Calendar, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
+import { apiFetch } from '../api'
+import { Search, Mail, Hash, UserCheck, Calendar, Clock, CheckCircle2, AlertCircle, Edit3, Trash2, X, ShieldAlert } from 'lucide-react'
 
 function StaffDetails() {
   const [staffList, setStaffList] = useState([])
@@ -7,6 +8,11 @@ function StaffDetails() {
   const [staffLogs, setStaffLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [editingStaff, setEditingStaff] = useState(null)
+  const [deletingStaff, setDeletingStaff] = useState(null)
+  const [editFormData, setEditFormData] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     fetchStaffAndLogs()
@@ -16,8 +22,8 @@ function StaffDetails() {
     setLoading(true)
     try {
       const [staffRes, logsRes] = await Promise.all([
-        fetch('/api/staff'),
-        fetch('/api/attendance/logs')
+        apiFetch('/api/staff'),
+        apiFetch('/api/attendance/logs')
       ])
       const staffData = await staffRes.json()
       const logsData = await logsRes.json()
@@ -45,10 +51,63 @@ function StaffDetails() {
     setStaffLogs(logs)
   }
 
+  function openEditModal(staff) {
+    setEditingStaff(staff)
+    setEditFormData({
+      staff_code: staff.staff_code || '',
+      first_name: staff.first_name || '',
+      last_name: staff.last_name || '',
+      email: staff.email || '',
+      department: staff.department || '',
+      designation: staff.designation || '',
+      status: staff.status !== false
+    })
+  }
+
+  function handleEditInputChange(event) {
+    const { name, value, type, checked } = event.target
+    setEditFormData(previous => ({ ...previous, [name]: type === 'checkbox' ? checked : value }))
+  }
+
+  async function handleUpdateStaff(event) {
+    event.preventDefault()
+    setSaving(true)
+    try {
+      const response = await apiFetch(`/api/staff/${editingStaff.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editFormData)
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.detail || 'Failed to update staff profile.')
+      setEditingStaff(null)
+      await fetchStaffAndLogs()
+    } catch (error) {
+      window.alert(error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDeleteStaff() {
+    setDeleting(true)
+    try {
+      const response = await apiFetch(`/api/staff/${deletingStaff.id}`, { method: 'DELETE' })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.detail || 'Failed to delete staff profile.')
+      setDeletingStaff(null)
+      await fetchStaffAndLogs()
+    } catch (error) {
+      window.alert(error.message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   async function handleSelectStaff(staff) {
     setSelectedStaff(staff)
     try {
-      const res = await fetch('/api/attendance/logs')
+      const res = await apiFetch('/api/attendance/logs')
       const logsData = await res.json()
       filterLogsForStaff(staff.id, logsData)
     } catch (err) {
@@ -187,9 +246,13 @@ function StaffDetails() {
                   </div>
                 </div>
 
-                <span className={`badge ${selectedStaff.status ? 'success' : 'danger'}`} style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}>
-                  {selectedStaff.status ? 'ACTIVE' : 'INACTIVE'}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span className={`badge ${selectedStaff.status ? 'success' : 'danger'}`} style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}>
+                    {selectedStaff.status ? 'ACTIVE' : 'INACTIVE'}
+                  </span>
+                  <button className="btn btn-secondary" onClick={() => openEditModal(selectedStaff)} title="Edit staff profile" style={{ padding: '0.45rem' }}><Edit3 size={16} /></button>
+                  <button className="btn btn-danger" onClick={() => setDeletingStaff(selectedStaff)} title="Delete staff profile" style={{ padding: '0.45rem' }}><Trash2 size={16} /></button>
+                </div>
               </div>
 
               {/* 2x2 Cards Grid */}
@@ -243,7 +306,9 @@ function StaffDetails() {
                   <div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Face profile</div>
                     <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>
-                      {selectedStaff.embeddings && selectedStaff.embeddings.length > 0 ? 'Enrolled' : 'Pending'}
+                      {selectedStaff.embeddings && selectedStaff.embeddings.length > 0
+                        ? `${selectedStaff.embeddings.length} Multi-Angle Sample${selectedStaff.embeddings.length > 1 ? 's' : ''}`
+                        : 'Pending Enrollment'}
                     </div>
                   </div>
                 </div>
@@ -288,6 +353,7 @@ function StaffDetails() {
                       <tr>
                         <th>DATE</th>
                         <th>CHECK IN</th>
+                        <th>CHECK OUT</th>
                         <th>METHOD</th>
                         <th>STATUS</th>
                       </tr>
@@ -302,6 +368,7 @@ function StaffDetails() {
                           <tr key={log.id}>
                             <td style={{ fontWeight: '600' }}>{formattedDate}</td>
                             <td>{formattedTime}</td>
+                            <td>{log.check_out ? new Date(log.check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : 'Active'}</td>
                             <td>{log.recognized_via || 'Camera'}</td>
                             <td>
                               <span className={`badge ${
@@ -319,6 +386,41 @@ function StaffDetails() {
                 </div>
               )}
             </div>
+
+            {editingStaff && (
+              <div className="modal-backdrop">
+                <div className="modal-card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                    <h3>Edit Staff Profile</h3>
+                    <button className="btn btn-secondary" onClick={() => setEditingStaff(null)} style={{ padding: '0.35rem 0.6rem' }}><X size={16} /></button>
+                  </div>
+                  <form onSubmit={handleUpdateStaff} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {['staff_code', 'first_name', 'last_name', 'email', 'department', 'designation'].map(field => (
+                      <div className="form-group" key={field}>
+                        <label>{field.replace('_', ' ')}</label>
+                        <input className="form-input" name={field} type={field === 'email' ? 'email' : 'text'} value={editFormData[field] || ''} onChange={handleEditInputChange} required={['staff_code', 'first_name', 'last_name', 'email'].includes(field)} />
+                      </div>
+                    ))}
+                    <label><input type="checkbox" name="status" checked={editFormData.status} onChange={handleEditInputChange} /> Active status</label>
+                    <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {deletingStaff && (
+              <div className="modal-backdrop">
+                <div className="modal-card" style={{ textAlign: 'center' }}>
+                  <ShieldAlert size={42} style={{ color: 'var(--status-danger)', marginBottom: '0.75rem' }} />
+                  <h3>Delete Staff Profile?</h3>
+                  <p style={{ color: 'var(--text-secondary)', margin: '0.75rem 0 1.25rem' }}>This permanently deletes {deletingStaff.first_name} {deletingStaff.last_name}, face templates, and attendance history.</p>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button className="btn btn-secondary" onClick={() => setDeletingStaff(null)} disabled={deleting} style={{ flex: 1 }}>Cancel</button>
+                    <button className="btn btn-danger" onClick={handleDeleteStaff} disabled={deleting} style={{ flex: 1 }}>{deleting ? 'Deleting...' : 'Delete Profile'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
 
           </div>
         ) : (

@@ -1,0 +1,15 @@
+{
+  "venvPath": "c:/Users/Theophelous/anaconda3/envs/PROJECT FILES/backend",
+  "venv": ".venv",
+  "executionEnvironments": [
+    {
+      "root": "backend",
+      "extraPaths": [
+        "c:/Users/Theophelous/anaconda3/envs/PROJECT FILES/backend"
+      ]
+    }
+  ],
+  "extraPaths": [
+    "c:/Users/Theophelous/anaconda3/envs/PROJECT FILES/backend"
+  ]
+}

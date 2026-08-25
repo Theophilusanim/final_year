@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { apiFetch } from '../api'
 import { Search, RotateCw, Calendar, Filter } from 'lucide-react'
 
 function AttendanceList() {
@@ -15,7 +16,7 @@ function AttendanceList() {
   async function fetchLogs() {
     setLoading(true)
     try {
-      const res = await fetch('/api/attendance/logs')
+      const res = await apiFetch('/api/attendance/logs')
       const data = await res.json()
       if (Array.isArray(data)) {
         setLogs(data)
@@ -139,6 +140,7 @@ function AttendanceList() {
                   <th>DEPARTMENT</th>
                   <th>DATE</th>
                   <th>CHECK IN</th>
+                  <th>CHECK OUT</th>
                   <th>METHOD</th>
                   <th>STATUS</th>
                 </tr>
@@ -162,6 +164,7 @@ function AttendanceList() {
                       <td>{log.staff?.department || 'N/A'}</td>
                       <td>{formattedDate}</td>
                       <td style={{ fontWeight: '600' }}>{formattedTime}</td>
+                      <td>{log.check_out ? new Date(log.check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : 'Active'}</td>
                       <td>{log.recognized_via || 'Camera'}</td>
                       <td>
                         <span className={`badge ${

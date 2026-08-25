@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Users, UserCheck, Clock, UserX } from 'lucide-react'
+import { apiFetch } from '../api'
 
 function Dashboard() {
   const [logs, setLogs] = useState([])
@@ -10,8 +11,8 @@ function Dashboard() {
     async function fetchData() {
       try {
         const [logsRes, staffRes] = await Promise.all([
-          fetch('/api/attendance/logs'),
-          fetch('/api/staff')
+          apiFetch('/api/attendance/logs'),
+          apiFetch('/api/staff')
         ])
         const logsData = await logsRes.json()
         const staffData = await staffRes.json()
@@ -28,9 +29,12 @@ function Dashboard() {
 
   // Calculate quick metrics
   const totalStaff = staff.length
+  const today = new Date()
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   const todayLogs = logs.filter(log => {
-    const today = new Date().toISOString().split('T')[0]
-    return log.check_in.startsWith(today)
+    const checkIn = new Date(log.check_in)
+    const checkInKey = `${checkIn.getFullYear()}-${String(checkIn.getMonth() + 1).padStart(2, '0')}-${String(checkIn.getDate()).padStart(2, '0')}`
+    return checkInKey === todayKey
   })
   
   // Unique staff checked in today

@@ -1,0 +1,12 @@
+{
+  "python.defaultInterpreterPath": "c:/Users/Theophelous/anaconda3/envs/PROJECT FILES/backend/.venv/Scripts/python.exe",
+  "python.interpreter.info": "c:/Users/Theophelous/anaconda3/envs/PROJECT FILES/backend/.venv/Scripts/python.exe",
+  "python.analysis.extraPaths": [
+    "c:/Users/Theophelous/anaconda3/envs/PROJECT FILES/backend",
+    "./backend"
+  ],
+  "python.autoComplete.extraPaths": [
+    "c:/Users/Theophelous/anaconda3/envs/PROJECT FILES/backend",
+    "./backend"
+  ]
+}
