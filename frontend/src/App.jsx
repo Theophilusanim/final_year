@@ -1,19 +1,39 @@
 import React, { useState, useEffect } from 'react'
-import { LayoutDashboard, ClipboardList, Camera, UserCheck, Users, ShieldAlert, Smartphone, LogOut } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Camera, UserCheck, Users, ShieldAlert, Smartphone, LogOut, UserCircle } from 'lucide-react'
 import Login from './components/Login'
-import { apiFetch } from './api'
+import { apiFetch, readJson } from './api'
 import Dashboard from './components/Dashboard'
 import AttendanceList from './components/AttendanceList'
 import CameraTerminal from './components/CameraTerminal'
 import StaffDetails from './components/StaffDetails'
 import StaffManagement from './components/StaffManagement'
 import MobileTerminal from './components/MobileTerminal'
+import Account from './components/Account'
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [networkBlocked, setNetworkBlocked] = useState(false)
   const [blockedIp, setBlockedIp] = useState('')
   const [authenticated, setAuthenticated] = useState(Boolean(localStorage.getItem('aegis_access_token')))
+  const [account, setAccount] = useState(null)
+  const [showLogoutPrompt, setShowLogoutPrompt] = useState(false)
+  const isAdmin = account?.role === 'admin'
+
+  useEffect(() => {
+    if (!authenticated) return
+    async function loadAccount() {
+      try {
+        const response = await apiFetch('/api/auth/me')
+        const data = await readJson(response)
+        if (!response.ok) throw new Error(data?.detail || 'Unable to load account')
+        setAccount(data)
+        if (data.role !== 'admin') setActiveTab('account')
+      } catch (err) {
+        console.error('Account loading failed:', err)
+      }
+    }
+    loadAccount()
+  }, [authenticated])
 
   useEffect(() => {
     const expire = () => setAuthenticated(false)
@@ -23,11 +43,12 @@ function App() {
 
   // Check subnet connectivity on mount and tab switches
   useEffect(() => {
+    if (!authenticated || !isAdmin) return
     async function checkNetwork() {
       try {
         const res = await apiFetch('/api/staff')
         if (res.status === 403) {
-          const data = await res.json()
+          const data = await readJson(res)
           if (data.detail && data.detail.includes("Campus Network")) {
             setNetworkBlocked(true)
             const ipMatch = data.detail.match(/\(([^)]+)\)/)
@@ -43,7 +64,15 @@ function App() {
       }
     }
     checkNetwork()
-  }, [activeTab])
+  }, [activeTab, isAdmin])
+
+  function handleSignOut() {
+    setShowLogoutPrompt(false)
+    localStorage.removeItem('aegis_access_token')
+    window.dispatchEvent(new Event('auth-expired'))
+    setAuthenticated(false)
+    setAccount(null)
+  }
 
   if (!authenticated) return <Login onLogin={() => setAuthenticated(true)} />
 
@@ -108,6 +137,22 @@ function App() {
         </div>
       )}
 
+      {showLogoutPrompt && (
+        <div className="logout-modal-backdrop" role="presentation" onMouseDown={event => {
+          if (event.target === event.currentTarget) setShowLogoutPrompt(false)
+        }}>
+          <section className="logout-modal" role="dialog" aria-modal="true" aria-labelledby="logout-title">
+            <div className="logout-modal-icon"><LogOut size={24} /></div>
+            <h2 id="logout-title">Log out?</h2>
+            <p>Are you sure you want to end your session?</p>
+            <div className="logout-modal-actions">
+              <button className="btn btn-secondary" type="button" onClick={() => setShowLogoutPrompt(false)}>Cancel</button>
+              <button className="btn btn-danger" type="button" onClick={handleSignOut}>Log out</button>
+            </div>
+          </section>
+        </div>
+      )}
+
       {/* Sidebar Navigation */}
       <aside className="sidebar">
         <div className="logo-container">
@@ -120,14 +165,23 @@ function App() {
         <ul className="nav-menu">
           <li>
             <button 
+              className={`nav-item ${activeTab === 'account' ? 'active' : ''}`}
+              onClick={() => setActiveTab('account')}
+            >
+              <UserCircle size={20} />
+              My Account
+            </button>
+          </li>
+          {isAdmin && <li>
+            <button 
               className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
               onClick={() => setActiveTab('dashboard')}
             >
               <LayoutDashboard size={20} />
               Dashboard
             </button>
-          </li>
-          <li>
+          </li>}
+          {isAdmin && <li>
             <button 
               className={`nav-item ${activeTab === 'attendance' ? 'active' : ''}`}
               onClick={() => setActiveTab('attendance')}
@@ -135,7 +189,7 @@ function App() {
               <ClipboardList size={20} />
               Attendance List
             </button>
-          </li>
+          </li>}
           <li>
             <button 
               className={`nav-item ${activeTab === 'camera' ? 'active' : ''}`}
@@ -154,7 +208,7 @@ function App() {
               Mobile Wi-Fi Terminal
             </button>
           </li>
-          <li>
+          {isAdmin && <li>
             <button 
               className={`nav-item ${activeTab === 'staff_details' ? 'active' : ''}`}
               onClick={() => setActiveTab('staff_details')}
@@ -162,18 +216,18 @@ function App() {
               <UserCheck size={20} />
               Staff Details
             </button>
-          </li>
-          <li>
-            <button 
+          </li>}
+          {isAdmin && <li>
+            <button
               className={`nav-item ${activeTab === 'staff' ? 'active' : ''}`}
               onClick={() => setActiveTab('staff')}
             >
               <Users size={20} />
               Staff Directory
             </button>
-          </li>
+          </li>}
         </ul>
-        <button className="nav-item logout-button" onClick={() => { localStorage.removeItem('aegis_access_token'); setAuthenticated(false) }}>
+        <button className="nav-item logout-button" onClick={() => setShowLogoutPrompt(true)}>
           <LogOut size={20} />
           Sign out
         </button>
@@ -181,12 +235,13 @@ function App() {
 
       {/* Main Content View */}
       <main className="main-content">
-        {activeTab === 'dashboard' && <Dashboard />}
-        {activeTab === 'attendance' && <AttendanceList />}
+        {isAdmin && activeTab === 'dashboard' && <Dashboard />}
+        {isAdmin && activeTab === 'attendance' && <AttendanceList />}
         {activeTab === 'camera' && <CameraTerminal />}
         {activeTab === 'mobile' && <MobileTerminal />}
-        {activeTab === 'staff_details' && <StaffDetails />}
-        {activeTab === 'staff' && <StaffManagement />}
+        {isAdmin && activeTab === 'staff_details' && <StaffDetails />}
+        {isAdmin && activeTab === 'staff' && <StaffManagement />}
+        {activeTab === 'account' && <Account />}
       </main>
     </div>
   )

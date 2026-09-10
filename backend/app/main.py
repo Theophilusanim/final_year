@@ -19,7 +19,7 @@ except ImportError:
 
 from .database import engine, Base, SessionLocal, get_db
 from . import models, schemas
-from .auth import ACCESS_TOKEN_MINUTES, create_access_token, ensure_admin_user, get_current_admin, verify_password
+from .auth import ACCESS_TOKEN_MINUTES, create_access_token, ensure_admin_user, get_current_admin, hash_password, verify_password
 from .recognition import decode_image, extract_face_embedding, match_face_in_db, check_liveness, calculate_cosine_similarity, MATCH_THRESHOLD
 
 # Initialize database tables
@@ -112,6 +112,13 @@ def login(credentials: schemas.LoginRequest, db: Session = Depends(get_db)):
     # Keep the account created by the earlier default usable after the email fix.
     if not user and email == "admin@aegis.com":
         user = db.query(models.AdminUser).filter(models.AdminUser.email == "admin@aegis.local").first()
+    if not user:
+        staff_profile = db.query(models.Staff).filter(models.Staff.email == email).first()
+        if staff_profile:
+            raise HTTPException(
+                status_code=401,
+                detail="Your staff profile exists, but your login account is not set up yet. Select Register to create your password."
+            )
     if not user or not user.is_active or not verify_password(credentials.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     return {
@@ -120,9 +127,52 @@ def login(credentials: schemas.LoginRequest, db: Session = Depends(get_db)):
         "expires_in": ACCESS_TOKEN_MINUTES * 60,
     }
 
+@app.post("/api/auth/register", response_model=schemas.TokenResponse, status_code=status.HTTP_201_CREATED)
+def register(credentials: schemas.RegisterRequest, db: Session = Depends(get_db)):
+    email = str(credentials.email).strip().lower()
+    if len(credentials.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
+    staff_profile = db.query(models.Staff).filter(models.Staff.email == email).first()
+    if not staff_profile:
+        raise HTTPException(status_code=404, detail="Use the email address registered in the Staff Directory")
+
+    user = db.query(models.AdminUser).filter(models.AdminUser.email == email).first()
+    if user and user.role == "admin":
+        raise HTTPException(status_code=409, detail="This administrator account cannot be reset here")
+    if user:
+        user.password_hash = hash_password(credentials.password)
+        user.is_active = True
+    else:
+        user = models.AdminUser(email=email, password_hash=hash_password(credentials.password), role="user")
+        db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {
+        "access_token": create_access_token(user),
+        "token_type": "bearer",
+        "expires_in": ACCESS_TOKEN_MINUTES * 60,
+    }
+
 @app.get("/api/auth/me", response_model=schemas.AdminResponse)
-def get_me(current_admin: models.AdminUser = Depends(get_current_admin)):
-    return current_admin
+def get_me(current_admin: models.AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    staff_profile = db.query(models.Staff).filter(models.Staff.email == current_admin.email).first()
+    return {
+        "id": current_admin.id,
+        "email": current_admin.email,
+        "role": current_admin.role,
+        "is_active": current_admin.is_active,
+        "created_at": current_admin.created_at,
+        "staff_profile": staff_profile,
+    }
+
+@app.get("/api/auth/me/attendance", response_model=List[schemas.PersonalAttendanceResponse])
+def get_my_attendance(current_admin: models.AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    staff_profile = db.query(models.Staff).filter(models.Staff.email == current_admin.email).first()
+    if not staff_profile:
+        return []
+    return db.query(models.AttendanceLog).filter(
+        models.AttendanceLog.staff_id == staff_profile.id
+    ).order_by(models.AttendanceLog.check_in.desc()).all()
 
 # --- STAFF ENDPOINTS ---
 
@@ -380,7 +430,8 @@ def check_out_attendance(payload: schemas.CheckOutRequest, db: Session = Depends
     
     log = db.query(models.AttendanceLog).filter(
         models.AttendanceLog.staff_id == staff.id,
-        models.AttendanceLog.check_in >= today_start
+        models.AttendanceLog.check_in >= today_start,
+        models.AttendanceLog.check_out.is_(None)
     ).order_by(models.AttendanceLog.check_in.desc()).first()
 
     if not log:
@@ -580,7 +631,8 @@ async def verify_face(file: UploadFile = File(...), db: Session = Depends(get_db
                 "message": f"Welcome back, {staff.first_name}! (Already checked in today)",
                 "staff_id": staff.id,
                 "name": f"{staff.first_name} {staff.last_name}",
-                "log_id": existing_log.id
+                "log_id": existing_log.id,
+                "already_checked_in": True
             }
             
         # 6. Determine status based on WORK_START_TIME (Default 08:00 AM)
@@ -615,7 +667,8 @@ async def verify_face(file: UploadFile = File(...), db: Session = Depends(get_db
             "attendance_status": attendance_status,
             "staff_id": staff.id,
             "name": f"{staff.first_name} {staff.last_name}",
-            "log_id": new_log.id
+            "log_id": new_log.id,
+            "already_checked_in": False
         }
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))

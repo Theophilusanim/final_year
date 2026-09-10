@@ -10,3 +10,14 @@ export async function apiFetch(input, init = {}) {
   }
   return response
 }
+
+export async function readJson(response) {
+  const body = await response.text()
+  if (!body.trim()) return null
+
+  try {
+    return JSON.parse(body)
+  } catch {
+    throw new Error(`Server returned an invalid response (${response.status})`)
+  }
+}

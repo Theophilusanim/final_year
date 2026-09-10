@@ -6,15 +6,34 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int
 
+class StaffAccountProfile(BaseModel):
+    id: int
+    staff_code: str
+    first_name: str
+    last_name: str
+    email: EmailStr
+    department: Optional[str] = None
+    designation: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 class AdminResponse(BaseModel):
     id: int
     email: str
     role: str
+    is_active: bool
+    created_at: datetime
+    staff_profile: Optional[StaffAccountProfile] = None
 
     class Config:
         from_attributes = True
@@ -77,6 +96,16 @@ class AttendanceLogResponse(AttendanceLogBase):
     check_in: datetime
     check_out: Optional[datetime] = None
     staff: StaffResponse
+
+    class Config:
+        from_attributes = True
+
+class PersonalAttendanceResponse(BaseModel):
+    id: int
+    check_in: datetime
+    check_out: Optional[datetime] = None
+    status: Optional[str] = None
+    recognized_via: Optional[str] = None
 
     class Config:
         from_attributes = True

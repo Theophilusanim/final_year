@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { apiFetch } from '../api'
+import { apiFetch, readJson } from '../api'
 import { Search, RotateCw, Calendar, Filter } from 'lucide-react'
 
 function AttendanceList() {
@@ -17,7 +17,7 @@ function AttendanceList() {
     setLoading(true)
     try {
       const res = await apiFetch('/api/attendance/logs')
-      const data = await res.json()
+      const data = await readJson(res)
       if (Array.isArray(data)) {
         setLogs(data)
       } else {

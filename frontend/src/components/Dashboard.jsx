@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Users, UserCheck, Clock, UserX } from 'lucide-react'
-import { apiFetch } from '../api'
+import { apiFetch, readJson } from '../api'
 
 function Dashboard() {
   const [logs, setLogs] = useState([])
@@ -14,8 +14,8 @@ function Dashboard() {
           apiFetch('/api/attendance/logs'),
           apiFetch('/api/staff')
         ])
-        const logsData = await logsRes.json()
-        const staffData = await staffRes.json()
+        const logsData = await readJson(logsRes)
+        const staffData = await readJson(staffRes)
         setLogs(logsData)
         setStaff(staffData)
       } catch (err) {

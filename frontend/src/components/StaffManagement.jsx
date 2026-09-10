@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { apiFetch } from '../api'
+import { apiFetch, readJson } from '../api'
 import { UserPlus, List, Check, AlertCircle, Camera, Upload, RefreshCw, Video, Layers, PlusCircle, CheckCircle, Edit3, Trash2, X, ShieldAlert } from 'lucide-react'
 
 function StaffManagement() {
@@ -70,7 +70,7 @@ function StaffManagement() {
   async function fetchStaff() {
     try {
       const res = await apiFetch('/api/staff')
-      const data = await res.json()
+      const data = await readJson(res)
       if (Array.isArray(data)) {
         setStaffList(data)
       } else {
@@ -101,7 +101,7 @@ function StaffManagement() {
         body: JSON.stringify(formData)
       })
 
-      const data = await res.json()
+      const data = await readJson(res)
 
       if (res.ok) {
         setNewStaffId(data.id)
@@ -161,7 +161,7 @@ function StaffManagement() {
         body: JSON.stringify(editFormData)
       })
 
-      const data = await res.json()
+      const data = await readJson(res)
 
       if (res.ok) {
         setMessage({ type: 'success', text: `Profile for ${data.first_name} ${data.last_name} updated successfully!` })
@@ -187,7 +187,7 @@ function StaffManagement() {
         method: 'DELETE'
       })
 
-      const data = await res.json()
+      const data = await readJson(res)
 
       if (res.ok) {
         setMessage({ type: 'success', text: data.message || `Staff profile deleted.` })
@@ -319,7 +319,7 @@ function StaffManagement() {
         body: uploadFormData
       })
 
-      const data = await res.json()
+      const data = await readJson(res)
 
       if (res.ok && data.status === 'success') {
         const currentCount = data.sample_count || (enrolledCount + 1)
@@ -372,7 +372,7 @@ function StaffManagement() {
         body: formData
       })
 
-      const data = await res.json()
+      const data = await readJson(res)
 
       if (res.ok && data.status === 'success') {
         setMessage({ type: 'success', text: data.message })

@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
-import { apiFetch } from '../api'
-import { Camera, CheckCircle, AlertCircle, RefreshCw, Video, UserCheck, XCircle, Pause, ShieldCheck, User } from 'lucide-react'
+import { apiFetch, readJson } from '../api'
+import { Camera, CheckCircle, AlertCircle, RefreshCw, Video, UserCheck, XCircle, Pause, ShieldCheck, User, LogIn, LogOut } from 'lucide-react'
 
 function CameraTerminal() {
   const videoRef = useRef(null)
@@ -11,6 +11,7 @@ function CameraTerminal() {
   const [autoScanEnabled, setAutoScanEnabled] = useState(true)
   const [isScanning, setIsScanning] = useState(false)
   const [cooldownActive, setCooldownActive] = useState(false)
+  const [attendanceMode, setAttendanceMode] = useState('check-in')
   
   // Prompt modal state
   const [identifiedStaff, setIdentifiedStaff] = useState(null) // { staff_id, first_name, last_name, name, staff_code, department, designation, already_checked_in }
@@ -228,7 +229,7 @@ function CameraTerminal() {
       })
 
       if (res.ok) {
-        const data = await res.json()
+        const data = await readJson(res)
         if (data.status === 'success' && data.staff_id) {
           // Identity recognized! Bring up confirmation prompt
           setIdentifiedStaff(data)
@@ -239,7 +240,7 @@ function CameraTerminal() {
     } finally {
       setIsScanning(false)
     }
-  }, [streamActive, cameraReady, autoScanEnabled, isScanning, cooldownActive, identifiedStaff])
+  }, [streamActive, cameraReady, autoScanEnabled, isScanning, cooldownActive, identifiedStaff, attendanceMode])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -253,25 +254,38 @@ function CameraTerminal() {
   async function handleConfirmAttendance() {
     if (!identifiedStaff || confirming) return
 
+    if (attendanceMode === 'check-in' && identifiedStaff.already_checked_in) {
+      setResult({
+        status: 'warning',
+        name: identifiedStaff.name,
+        message: 'This staff member is already marked present today. No second check-in was recorded.'
+      })
+      setIdentifiedStaff(null)
+      triggerCooldown(5000)
+      return
+    }
+
     setConfirming(true)
     setError(null)
     setResult(null)
 
     try {
-      const res = await apiFetch('/api/attendance/mark-attendance', {
+      const endpoint = attendanceMode === 'check-in' ? '/api/attendance/mark-attendance' : '/api/attendance/check-out'
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ staff_id: identifiedStaff.staff_id })
       })
 
-      const data = await res.json()
+      const data = await readJson(res)
 
       if (res.ok && data.status === 'success') {
         setResult({
           status: 'success',
-          name: data.name,
-          message: data.message
+          name: data.name || identifiedStaff.name,
+          message: data.message || (attendanceMode === 'check-in' ? 'Check-in recorded.' : 'Check-out recorded.')
         })
+        if (attendanceMode === 'check-out') window.dispatchEvent(new Event('attendance-updated'))
       } else {
         setResult({
           status: 'error',
@@ -312,6 +326,22 @@ function CameraTerminal() {
       <div className="glass-card camera-container">
         {/* Camera Selector & Auto-Scan Toggle Bar */}
         <div style={{ display: 'flex', gap: '0.75rem', width: '100%', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <div className="camera-attendance-modes" role="group" aria-label="Attendance action">
+            <button
+              type="button"
+              className={`btn ${attendanceMode === 'check-in' ? '' : 'btn-secondary'}`}
+              onClick={() => { setAttendanceMode('check-in'); setResult(null) }}
+            >
+              <LogIn size={16} /> Check In
+            </button>
+            <button
+              type="button"
+              className={`btn ${attendanceMode === 'check-out' ? '' : 'btn-secondary'}`}
+              onClick={() => { setAttendanceMode('check-out'); setResult(null) }}
+            >
+              <LogOut size={16} /> Check Out
+            </button>
+          </div>
           <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
             <Video size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
             <select
@@ -450,8 +480,8 @@ function CameraTerminal() {
 
         {result && (
           <div className="result-card" style={{
-            backgroundColor: result.status === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-            border: `1px solid ${result.status === 'success' ? 'var(--status-success)' : 'var(--status-danger)'}`
+            backgroundColor: result.status === 'success' ? 'rgba(16, 185, 129, 0.12)' : result.status === 'warning' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+            border: `1px solid ${result.status === 'success' ? 'var(--status-success)' : result.status === 'warning' ? 'var(--status-warning)' : 'var(--status-danger)'}`
           }}>
             {result.status === 'success' ? (
               <>
@@ -463,9 +493,9 @@ function CameraTerminal() {
               </>
             ) : (
               <>
-                <AlertCircle size={24} style={{ color: 'var(--status-danger)' }} />
+                <AlertCircle size={24} style={{ color: result.status === 'warning' ? 'var(--status-warning)' : 'var(--status-danger)' }} />
                 <div>
-                  <h4 style={{ fontWeight: '700', fontSize: '1.1rem', color: 'var(--status-danger)' }}>Status Notice</h4>
+                  <h4 style={{ fontWeight: '700', fontSize: '1.1rem', color: result.status === 'warning' ? 'var(--status-warning)' : 'var(--status-danger)' }}>{result.status === 'warning' ? 'Already Present' : 'Status Notice'}</h4>
                   <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{result.message}</p>
                 </div>
               </>
@@ -493,9 +523,9 @@ function CameraTerminal() {
               }}>
                 <ShieldCheck size={32} />
               </div>
-              <h3 style={{ fontSize: '1.35rem', fontWeight: '700', color: 'var(--text-primary)' }}>Identity Recognized!</h3>
+              <h3 style={{ fontSize: '1.35rem', fontWeight: '700', color: 'var(--text-primary)' }}>Identity Recognized</h3>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                Please verify if you are the staff member recognized:
+                Confirm that you want to {attendanceMode === 'check-in' ? 'check in' : 'check out'} as this staff member:
               </p>
             </div>
 
@@ -534,7 +564,7 @@ function CameraTerminal() {
                     <span>• Dept: <strong style={{ color: 'var(--text-primary)' }}>{identifiedStaff.department}</strong></span>
                   )}
                 </div>
-                {identifiedStaff.already_checked_in && (
+                {attendanceMode === 'check-in' && identifiedStaff.already_checked_in && (
                   <span style={{
                     display: 'inline-block',
                     marginTop: '0.4rem',
@@ -571,12 +601,12 @@ function CameraTerminal() {
                 {confirming ? (
                   <>
                     <RefreshCw className="animate-spin" size={18} style={{ animation: 'spin 1.5s linear infinite' }} />
-                    Logging...
+                    Processing...
                   </>
                 ) : (
                   <>
                     <UserCheck size={18} />
-                    Yes, That's Me
+                    {attendanceMode === 'check-in' ? 'Confirm Check In' : 'Confirm Check Out'}
                   </>
                 )}
               </button>

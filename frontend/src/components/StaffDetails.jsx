@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { apiFetch } from '../api'
+import { apiFetch, readJson } from '../api'
 import { Search, Mail, Hash, UserCheck, Calendar, Clock, CheckCircle2, AlertCircle, Edit3, Trash2, X, ShieldAlert } from 'lucide-react'
 
 function StaffDetails() {
@@ -25,8 +25,8 @@ function StaffDetails() {
         apiFetch('/api/staff'),
         apiFetch('/api/attendance/logs')
       ])
-      const staffData = await staffRes.json()
-      const logsData = await logsRes.json()
+      const staffData = await readJson(staffRes)
+      const logsData = await readJson(logsRes)
       
       const safeStaff = Array.isArray(staffData) ? staffData : []
       const safeLogs = Array.isArray(logsData) ? logsData : []
@@ -78,7 +78,7 @@ function StaffDetails() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editFormData)
       })
-      const data = await response.json()
+      const data = await readJson(response)
       if (!response.ok) throw new Error(data.detail || 'Failed to update staff profile.')
       setEditingStaff(null)
       await fetchStaffAndLogs()
@@ -93,7 +93,7 @@ function StaffDetails() {
     setDeleting(true)
     try {
       const response = await apiFetch(`/api/staff/${deletingStaff.id}`, { method: 'DELETE' })
-      const data = await response.json()
+      const data = await readJson(response)
       if (!response.ok) throw new Error(data.detail || 'Failed to delete staff profile.')
       setDeletingStaff(null)
       await fetchStaffAndLogs()
@@ -108,7 +108,7 @@ function StaffDetails() {
     setSelectedStaff(staff)
     try {
       const res = await apiFetch('/api/attendance/logs')
-      const logsData = await res.json()
+      const logsData = await readJson(res)
       filterLogsForStaff(staff.id, logsData)
     } catch (err) {
       console.error("Error updating logs:", err)

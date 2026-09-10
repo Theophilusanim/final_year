@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { apiFetch } from '../api'
-import { Wifi, WifiOff, Smartphone, LogIn, LogOut, CheckCircle, AlertCircle, RefreshCw, ShieldCheck, Camera, ScanFace } from 'lucide-react'
+import { apiFetch, readJson } from '../api'
+import { Wifi, WifiOff, Smartphone, LogIn, LogOut, CheckCircle, AlertCircle, RefreshCw, ShieldCheck, Camera, ScanFace, X } from 'lucide-react'
 
 function MobileTerminal() {
   const [networkInfo, setNetworkInfo] = useState(null)
@@ -10,6 +10,7 @@ function MobileTerminal() {
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
+  const [alreadyPresent, setAlreadyPresent] = useState(null)
 
   useEffect(() => {
     fetchNetworkInfo()
@@ -20,7 +21,7 @@ function MobileTerminal() {
     setError(null)
     try {
       const response = await apiFetch('/api/network/info')
-      const netData = await response.json()
+      const netData = await readJson(response)
       if (!response.ok) throw new Error(netData.detail || 'Network check failed.')
 
       setNetworkInfo(netData)
@@ -48,8 +49,14 @@ function MobileTerminal() {
       formData.append('file', faceImage)
       const identifyEndpoint = mode === 'check-in' ? '/api/attendance/verify-face' : '/api/attendance/identify'
       const identifyResponse = await apiFetch(identifyEndpoint, { method: 'POST', body: formData })
-      const identifyData = await identifyResponse.json()
+      const identifyData = await readJson(identifyResponse)
       if (!identifyResponse.ok) throw new Error(identifyData.detail || 'Face verification failed.')
+
+      if (mode === 'check-in' && identifyData.already_checked_in) {
+        setAlreadyPresent(identifyData)
+        setFaceImage(null)
+        return
+      }
 
       let message = identifyData.message
       if (mode === 'check-out') {
@@ -58,9 +65,10 @@ function MobileTerminal() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ staff_id: identifyData.staff_id })
         })
-        const checkoutData = await checkoutResponse.json()
+        const checkoutData = await readJson(checkoutResponse)
         if (!checkoutResponse.ok) throw new Error(checkoutData.detail || 'Check-out failed.')
         message = checkoutData.message
+        window.dispatchEvent(new Event('attendance-updated'))
       }
       setResult({ status: 'success', name: identifyData.name, message, mode })
       setFaceImage(null)
@@ -73,6 +81,16 @@ function MobileTerminal() {
 
   return (
     <div className="mobile-terminal">
+      {alreadyPresent && (
+        <div className="duplicate-attendance-backdrop" role="presentation">
+          <section className="duplicate-attendance-modal" role="alertdialog" aria-modal="true" aria-labelledby="already-present-title">
+            <div className="duplicate-attendance-icon"><AlertCircle size={28} /></div>
+            <h2 id="already-present-title">Already marked present</h2>
+            <p>{alreadyPresent.name} is already checked in today. No second attendance record was created.</p>
+            <button className="btn btn-secondary" type="button" onClick={() => setAlreadyPresent(null)}><X size={18} /> Close</button>
+          </section>
+        </div>
+      )}
       <div className="header">
         <div className="header-title">
           <h1>Mobile Wi-Fi Check-In & Out</h1>
